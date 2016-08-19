@@ -1,5 +1,7 @@
 # Reducible streams for decoding data
 
+[![Clojars Project](https://img.shields.io/clojars/v/pjstadig/reducible-stream.svg)](https://clojars.org/pjstadig/reducible-stream)
+
 Clojure has a couple of different modes for processing collections.  One is lazy
 sequences, another is using reduction, and each has their advantages and
 disadvantages.
