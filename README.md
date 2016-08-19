@@ -1,4 +1,4 @@
-# Reducible streams for decoding data
+# A reducible stream for decoding data
 
 [![Clojars Project](https://img.shields.io/clojars/v/pjstadig/reducible-stream.svg)](https://clojars.org/pjstadig/reducible-stream)
 
