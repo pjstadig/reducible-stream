@@ -77,7 +77,7 @@
   passed to lines-open.  If the :encoding option is not specified, it will
   default to \"UTF-8\"."
   ([stream]
-   (decode-lines! stream nil))
+   (decode-lines! nil stream))
   ([encoding stream]
    (decode! lines-decoder {:open (partial lines-open encoding)} stream)))
 
