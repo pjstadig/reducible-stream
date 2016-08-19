@@ -38,8 +38,8 @@ But there is no guarantee that a lazy sequence will be fully consumed.
 
 ## Reduction
 
-Reduction can be used to process a collection, and in Clojure collection that is
-being reduced can control the reduction process.  The collection could
+Reduction can be used to process a collection, and in Clojure the collection
+that is being reduced can control the reduction process.  The collection could
 (theoretically) clean up resources after the reduction is complete (whether or
 not the collection has been fully consumed).
 
