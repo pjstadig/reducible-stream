@@ -60,15 +60,18 @@ source for a transducer need not even be a collection, it can be a channel, or
 even a stream.
 
 ## Big Idea
+
 The big idea here is to take a stream, fuse it with a decoder and resource
 management, and package it up as a reducible object.  This object can have a
 transducer applied to it, and whether that transducer fully consumes the stream
 or not, the stream will get cleaned up.
 
 ## Consequences
+
 The reduction process is eager, so you obviously need to consider that.  In
-addition, the reducible stream object is I/O, and can only be used once.  If you
-try to reduce it again you'll get an exception about the stream being closed.
+addition, the reducible stream object performs I/O, and can only be used once.
+If you try to reduce it again you'll get an exception about the stream being
+closed.
 
 The reducible stream also exposes a seq interface, so you can use it with
 sequence operations, however, the entire sequence will be preloaded into memory.
