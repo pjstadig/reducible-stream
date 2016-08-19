@@ -65,6 +65,22 @@ management, and package it up as a reducible object.  This object can have a
 transducer applied to it, and whether that transducer fully consumes the stream
 or not, the stream will get cleaned up.
 
+## Consequences
+The reduction process is eager, so you obviously need to consider that.  In
+addition, the reducible stream object is I/O, and can only be used once.  If you
+try to reduce it again you'll get an exception about the stream being closed.
+
+The reducible stream also exposes a seq interface, so you can use it with
+sequence operations, however, the entire sequence will be preloaded into memory.
+This may or may not be a problem, given that you get automatic resource
+management.
+
+Using a reducible stream with reduction is the preferred method, since it allows
+you to terminate the reduction early, or reduce for side effects and not load
+the entire sequence into memory.
+
+This is all very side-effecty...so get over it!
+
 ## Usage
 
 There are four interfaces to this library: `decode-lines!`, `decode-edn!`,
