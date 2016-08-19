@@ -106,6 +106,16 @@ that is used to read the stream.
 Each of the other functions is used similarly, and each can take options that
 will get forwarded to the decoder that is being used.
 
+## Acknowledgments
+
+A special hat tip to [hiredman](https://twitter.com/hiredman_).  His
+[treatise](https://ce2144dc-f7c9-4f54-8fb6-7321a4c318db.s3.amazonaws.com/reducers.html)
+on reducers is well worth reading.
+
+Several moons ago it got me started thinking about these things.  I think the
+idea of a reducible managing its own resources is more interesting now that
+transducers are on the scene.
+
 ## License
 
 Copyright © 2016 Paul Stadig.
