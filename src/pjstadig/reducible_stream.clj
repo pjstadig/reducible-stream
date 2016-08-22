@@ -5,11 +5,21 @@
   (:import
    (java.io Closeable PushbackReader)))
 
+(defmacro with-decoding-stream
+  [close binding & body]
+  `(let [stream# ~(second binding)
+         ~(first binding) stream#]
+     (try
+       ~@body
+       (finally
+         (~close stream#)))))
+
 (defn decode!
-  "Creates a reducible, seqable object that will decode using the decoder
-  funcion the stream that results from giving the specified stream to
-  clojure.java.io/input-stream. This object will manage the stream (i.e. it will
-  close it when the object has been reduced/seq'ed).
+  "Creates a reducible, seqable object that will decode (using the decoder
+  function) a stream created by calling the specified open function (or
+  clojure.java.io/input-stream if open is not specified). This object will
+  manage the stream (i.e. it will close it when the object has been
+  reduced/seq'ed).
 
   If this object is seq'ed it will entirely consume the stream, fully realize in
   memory the decoded sequence, closed close the stream, then return the
@@ -23,55 +33,53 @@
   much of the stream as is necessary, then it will close the stream before
   terminating the reduction early.
 
-  An optional open function can be specified, it will take the stream and the
-  value that is returned will be given to the decoder function.
+  An optional open function can be specified.  It will take the stream and the
+  returned object will be given to the decoder function.
 
-  An optional close function can be specified, before the stream is closed the
-  close function will be called and given the value that was returned from
-  open."
+  If the open function is not specified, then clojure.java.io/input-stream will
+  be used.
+
+  An optional close function can be specified.  When the reduction has
+  terminated the close function will be called and given the object returned
+  from the open function.
+
+  If the close function is not specified and the object returned by the open
+  function implements java.io.Closeable, then it will be closed.  Otherwise the
+  close function is a no-op."
   ([decoder stream]
    (decode! decoder {} stream))
   ([decoder {:keys [open close] :as options} stream]
-   (io!
-    (reify
-      clojure.lang.IReduce
-      (reduce [this f]
-        (io!
-         (with-open [stream (io/input-stream stream)]
-           (let [stream (cond-> stream
-                          open (open))]
-             (try
-               (let [decoded (->> (repeatedly #(decoder stream ::eof))
-                                  (take-while (complement #{::eof})))]
-                 (if (seq decoded)
-                   (reduce f (first decoded) (rest decoded))
-                   (f)))
-               (finally
-                 (if close
-                   (close stream)
-                   (if (instance? Closeable stream)
-                     (.close ^Closeable stream)))))))))
-      clojure.lang.IReduceInit
-      (reduce [this f init]
-        (io!
-         (with-open [stream (io/input-stream stream)]
-           (let [stream (cond-> stream
-                          open (open))]
-             (try
-               (->> (repeatedly #(decoder stream ::eof))
-                    (take-while (complement #{::eof}))
-                    (reduce f init))
-               (finally
-                 (if close
-                   (close stream)
-                   (if (instance? Closeable stream)
-                     (.close ^Closeable stream)))))))))
-      clojure.lang.Seqable
-      (seq [this]
-        (seq (into [] this)))
-      clojure.lang.Counted
-      (count [this]
-        (count (seq this)))))))
+   (let [open (or open io/input-stream)
+         close (or close
+                   (fn [stream]
+                     (when (instance? Closeable stream)
+                       (.close ^Closeable stream))))]
+     (io!
+      (reify
+        clojure.lang.IReduce
+        (reduce [this f]
+          (io!
+           (with-decoding-stream close
+             [stream (open stream)]
+             (let [decoded (->> (repeatedly #(decoder stream ::eof))
+                                (take-while (complement #{::eof})))]
+               (if (seq decoded)
+                 (reduce f (first decoded) (rest decoded))
+                 (f))))))
+        clojure.lang.IReduceInit
+        (reduce [this f init]
+          (io!
+           (with-decoding-stream close
+             [stream (open stream)]
+             (->> (repeatedly #(decoder stream ::eof))
+                  (take-while (complement #{::eof}))
+                  (reduce f init)))))
+        clojure.lang.Seqable
+        (seq [this]
+          (seq (into [] this)))
+        clojure.lang.Counted
+        (count [this]
+          (count (seq this))))))))
 
 (defn lines-open
   "Used as the open function for decoding text.  Returns a
