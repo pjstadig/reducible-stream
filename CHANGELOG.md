@@ -5,6 +5,12 @@ log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2016-08-22
+### Changes
+- `open` function to `decode!` now defaults to `clojure.java.io/input-stream`.
+- Better doc string for `decode!`.
+- Some simplification and refactoring.
+
 ## [0.1.2] - 2016-08-22
 ### Fixed
 - Correctly implement reduce semantics for reductions without an init value.
@@ -19,6 +25,7 @@ log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 ### Added
 - Initial implementation of library.
 
-[Unreleased]: https://github.com/pjstadig/reducible-stream/compare/0.1.1...HEAD
-[0.1.1]: https://github.com/pjstadig/reducible-stream/compare/0.1.0...0.1.1
+[Unreleased]: https://github.com/pjstadig/reducible-stream/compare/0.1.3...HEAD
+[0.1.3]: https://github.com/pjstadig/reducible-stream/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/pjstadig/reducible-stream/compare/0.1.1...0.1.2
+[0.1.1]: https://github.com/pjstadig/reducible-stream/compare/0.1.0...0.1.1
