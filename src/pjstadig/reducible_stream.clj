@@ -36,7 +36,21 @@
     (reify
       clojure.lang.IReduce
       (reduce [this f]
-        (.reduce this f (f)))
+        (io!
+         (with-open [stream (io/input-stream stream)]
+           (let [stream (cond-> stream
+                          open (open))]
+             (try
+               (let [decoded (->> (repeatedly #(decoder stream ::eof))
+                                  (take-while (complement #{::eof})))]
+                 (if (seq decoded)
+                   (reduce f (first decoded) (rest decoded))
+                   (f)))
+               (finally
+                 (if close
+                   (close stream)
+                   (if (instance? Closeable stream)
+                     (.close ^Closeable stream)))))))))
       clojure.lang.IReduceInit
       (reduce [this f init]
         (io!

@@ -20,18 +20,27 @@
                   (lines-decoder stream eof))
         close (fn [stream]
                 (swap! calls conj :close))
-        result (->> (lines-stream "UTF-8" "blah" "blah" "blah")
+        result (->> (lines-stream "UTF-8" "first" "second" "third")
                     (decode! decoder {:open open :close close})
                     (into [] (take 1)))]
     (is (= 1 (count result))
         "should return only one item")
     (is (= [:open :decoder :close] @calls)
         "should consume only one item"))
-  (is (= "blahblahblah"
-         (reduce str
-                 (->> (lines-stream "UTF-8" "blah" "blah" "blah")
+  (is (= "firstsecondthird"
+         (reduce (fn
+                   ([] "no-arg")
+                   ([a b] (str a b)))
+                 (->> (lines-stream "UTF-8" "first" "second" "third")
                       (decode! lines-decoder {:open lines-open}))))
-      "should work when init is not provided"))
+      "should take first item when init is not provided")
+  (is (= "no-arg"
+         (reduce (fn
+                   ([] "no-arg")
+                   ([a b] (str a b)))
+                 (->> (lines-stream "UTF-8")
+                      (decode! lines-decoder {:open lines-open}))))
+      "should call no-arg reducer when collection is empty"))
 
 (deftest t-decode!-as-seq
   (let [calls (atom [])
@@ -43,7 +52,7 @@
                   (lines-decoder stream eof))
         close (fn [stream]
                 (swap! calls conj :close))
-        result (->> (lines-stream "UTF-8" "blah" "blah" "blah")
+        result (->> (lines-stream "UTF-8" "first" "second" "third")
                     (decode! decoder {:open open :close close})
                     (take 1))]
     (is (= 1 (count result))
