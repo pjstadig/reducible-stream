@@ -1,4 +1,4 @@
-(defproject pjstadig/reducible-stream "0.1.1"
+(defproject pjstadig/reducible-stream "0.1.2-SNAPSHOT"
   :description "Reducible stream for decoding data."
   :url "https://github.com/pjstadig/reducible-stream"
   :license {:name "Eclipse Public License"
