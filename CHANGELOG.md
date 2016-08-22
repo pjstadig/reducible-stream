@@ -1,24 +1,17 @@
 # Change Log
-All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
-### Changed
-- Add a new arity to `make-widget-async` to provide a different widget shape.
+All notable changes to this project will be documented in this file. This change
+log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [0.1.1] - 2016-08-18
-### Changed
-- Documentation on how to make the widgets.
-
-### Removed
-- `make-widget-sync` - we're all async, all the time.
-
 ### Fixed
-- Fixed widget maker to keep working when daylight savings switches over.
+- Fixed compile error.
+- Made reducible stream implement IReduce as well, so it can be reduced without
+  an init value.
 
-## 0.1.0 - 2016-08-18
+## 0.1.0 - 2016-08-19
 ### Added
-- Files from the new template.
-- Widget maker public API - `make-widget-sync`.
+- Initial implementation of library.
 
-[Unreleased]: https://github.com/your-name/reducible-stream/compare/0.1.1...HEAD
-[0.1.1]: https://github.com/your-name/reducible-stream/compare/0.1.0...0.1.1
+[Unreleased]: https://github.com/pjstadig/reducible-stream/compare/0.1.1...HEAD
+[0.1.1]: https://github.com/pjstadig/reducible-stream/compare/0.1.0...0.1.1
