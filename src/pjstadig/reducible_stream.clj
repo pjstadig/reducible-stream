@@ -34,6 +34,9 @@
   ([decoder {:keys [open close] :as options} stream]
    (io!
     (reify
+      clojure.lang.IReduce
+      (reduce [this f]
+        (.reduce this f (f)))
       clojure.lang.IReduceInit
       (reduce [this f init]
         (io!
@@ -60,7 +63,7 @@
   "Used as the open function for decoding text.  Returns a
   java.io.BufferedReader instance."
   ([stream]
-   (line-open nil stream))
+   (lines-open nil stream))
   ([encoding stream]
    (io/reader stream :encoding (or encoding "UTF-8"))))
 

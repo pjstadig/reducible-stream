@@ -10,7 +10,7 @@
   [encoding & lines]
   (io/input-stream (.getBytes (string/join "\n" lines) encoding)))
 
-(deftest t-decode-as-reducer!
+(deftest t-decode!-as-reducer
   (let [calls (atom [])
         open (fn [stream]
                (swap! calls conj :open)
@@ -26,9 +26,14 @@
     (is (= 1 (count result))
         "should return only one item")
     (is (= [:open :decoder :close] @calls)
-        "should consume only one item")))
+        "should consume only one item"))
+  (is (= "blahblahblah"
+         (reduce str
+                 (->> (lines-stream "UTF-8" "blah" "blah" "blah")
+                      (decode! lines-decoder {:open lines-open}))))
+      "should work when init is not provided"))
 
-(deftest t-decode-as-seq!
+(deftest t-decode!-as-seq
   (let [calls (atom [])
         open (fn [stream]
                (swap! calls conj :open)
