@@ -6,6 +6,9 @@ Clojure has a couple of different modes for processing collections.  One is lazy
 sequences, another is using reduction, and each has their advantages and
 disadvantages.
 
+The following discussion is important to understanding this library, but if you
+are impatient, jump straight to [Usage](#usage)
+
 ## Lazy sequences
 
 For example, when it comes to managing resources, lazy sequences do not allow
@@ -87,6 +90,13 @@ the entire sequence into memory.
 This is all very side-effecty...so get over it!
 
 ## Usage
+
+Bring in the library with a require:
+
+```clojure
+(require '[pjstadig.reducible-stream 
+           :refer [decode! decode-clojure! decode-edn! decode-lines! decode-transit!]])
+```
 
 There are four interfaces to this library: `decode-lines!`, `decode-edn!`,
 `decode-clojure!`, `decode-transit!`.  Additionally, there is a more general
