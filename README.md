@@ -11,15 +11,19 @@ are impatient, jump straight to [Usage](#usage)
 
 ## Lazy sequences
 
-For example, when it comes to managing resources, lazy sequences do not allow
-the sequence itself to manage its own resources so resource management will
-generally fall upon the consumer of the lazy sequence.  A classic example of
-this is:
+Lazy sequences do not allow the sequence itself to manage its own resources so
+resource management will generally fall upon the consumer of the lazy sequence.
+A classic example of this is:
 
 ```clojure
 (with-open [f (io/reader (io/file some-file))]
   (line-seq f))
 ```
+
+Here if the lazy seq escapes the context of the `with-open` (which it does),
+then you will get an exception when you consume it.  As the consumer you must
+establish a `with-open` context and ensure everything is fully consumed before
+leaving that context.
 
 You can build a lazy sequence that will clean up its resources when it has been
 consumed:
@@ -56,9 +60,9 @@ Reduction can:
 - produce a single value
 - produce a smaller sequence
 - produce a larger sequence
-- does not produce intermediate sequences
 
-Reduction is fast, efficient, and very flexible.
+Reduction also does not produce intermediate sequences, so it is fast,
+efficient, and very flexible.
 
 A transducer is collection processing logic separate from a collection.  The
 source for a transducer need not even be a collection, it can be a channel, or
@@ -67,9 +71,9 @@ even a stream.
 ## Big Idea
 
 The big idea here is to take a stream, fuse it with a decoder and resource
-management, and package it up as a reducible object.  This object can have a
-transducer applied to it, and whether that transducer fully consumes the stream
-or not, the stream will get cleaned up.
+management, and package it up as a reducible object.  This object can be passed
+around as a value and can have a transducer applied to it, and whether that
+transducer fully consumes the stream or not, the stream will get cleaned up.
 
 ## Consequences
 
@@ -128,7 +132,7 @@ transducers are on the scene.
 
 ## License
 
-Copyright © 2016 Paul Stadig.
+Copyright © Paul Stadig.
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
