@@ -6,13 +6,23 @@
    (java.io Closeable PushbackReader)))
 
 (defn- decode!*
-  [e? f rf r v]
+  [r rf v f e?]
   (if (e? v)
     r
     (let [r (rf r v)]
       (if (reduced? r)
-        @r
-        (recur e? f rf r (f))))))
+        r
+        (recur r rf (f) f e?)))))
+
+(defn- finalize
+  [r rf o]
+  (let [r (if (and (not (reduced? r))
+                   (contains? o :eof))
+            (rf r (:eof o))
+            r)]
+    (if (reduced? r)
+      @r
+      r)))
 
 (defn decode!
   "Creates a reducible, seqable object that will decode (using the decoder
@@ -48,24 +58,26 @@
   close function is a no-op."
   ([decoder stream]
    (decode! decoder {} stream))
-  ([decoder {:keys [open close]} stream]
+  ([decoder {:as options :keys [open close]} stream]
    (let [open (or open io/input-stream)
          close (or close
                    (fn [stream]
                      (when (instance? Closeable stream)
-                       (.close ^Closeable stream))))]
+                       (.close ^Closeable stream))))
+         eof? (partial identical? ::eof)]
      (reify
        clojure.lang.IReduce
        (reduce [this rf]
          (io!
           (let [stream (open stream)
-                decode #(decoder stream ::eof)
-                eof? (partial identical? ::eof)]
+                decode #(decoder stream ::eof)]
             (try
               (let [v (decode)]
-                (if (eof? v)
-                  (rf)
-                  (decode!* eof? decode rf v (decode))))
+                (finalize (if (eof? v)
+                            (rf)
+                            (decode!* v rf (decode) decode eof?))
+                          rf
+                          options))
               (finally
                 (close stream))))))
        clojure.lang.IReduceInit
@@ -74,7 +86,9 @@
           (let [stream (open stream)
                 decode #(decoder stream ::eof)]
             (try
-              (decode!* (partial identical? ::eof) decode rf init (decode))
+              (finalize (decode!* init rf (decode) decode eof?)
+                        rf
+                        options)
               (finally
                 (close stream))))))
        clojure.lang.Seqable
@@ -129,10 +143,10 @@
   ([stream]
    (decode-edn! {} stream))
   ([options stream]
-   (cond-> (decode! (partial edn-decoder (dissoc options :encoding))
-                    {:open (partial edn-open (:encoding options))}
-                    stream)
-     (contains? options :eof) (concat [(:eof options)]))))
+   (decode! (partial edn-decoder (dissoc options :encoding))
+            (cond-> {:open (partial edn-open (:encoding options))}
+              (contains? options :eof) (assoc :eof (:eof options)))
+            stream)))
 
 (defn clojure-open
   "Used as the open function for decoding clojure.  Returns a
@@ -157,10 +171,10 @@
   ([stream]
    (decode-clojure! {} stream))
   ([options stream]
-   (cond-> (decode! (bound-fn* (partial clojure-decoder (dissoc options :encoding)))
-                    {:open (partial clojure-open (:encoding options))}
-                    stream)
-     (contains? options :eof) (concat [(:eof options)]))))
+   (decode! (bound-fn* (partial clojure-decoder (dissoc options :encoding)))
+            (cond-> {:open (partial clojure-open (:encoding options))}
+              (contains? options :eof) (assoc :eof (:eof options)))
+            stream)))
 
 (defn- transit-enabled‽
   []
