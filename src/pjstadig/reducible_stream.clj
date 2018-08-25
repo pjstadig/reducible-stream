@@ -187,7 +187,7 @@
   [type options stream]
   (transit-enabled‽)
   (let [reader (ns-resolve 'cognitect.transit 'reader)]
-    (reader stream type options)))
+    (reader (io/input-stream stream) type options)))
 
 (defn transit-decoder
   "Decodes one item from reader returning eof if the end of the reader is

@@ -6,9 +6,9 @@
    [cognitect.transit :as transit]
    [pjstadig.reducible-stream :refer :all]))
 
-(defn lines-stream
+(defn lines-data
   [encoding & lines]
-  (io/input-stream (.getBytes (string/join "\n" lines) encoding)))
+  (.getBytes (string/join "\n" lines) encoding))
 
 (deftest t-decode!-as-reducer
   (let [calls (atom [])
@@ -20,7 +20,7 @@
                   (lines-decoder stream eof))
         close (fn [stream]
                 (swap! calls conj :close))
-        result (->> (lines-stream "UTF-8" "first" "second" "third")
+        result (->> (lines-data "UTF-8" "first" "second" "third")
                     (decode! decoder {:open open :close close})
                     (into [] (take 1)))]
     (is (= 1 (count result))
@@ -31,14 +31,14 @@
          (reduce (fn
                    ([] "no-arg")
                    ([a b] (str a b)))
-                 (->> (lines-stream "UTF-8" "first" "second" "third")
+                 (->> (lines-data "UTF-8" "first" "second" "third")
                       (decode! lines-decoder {:open lines-open}))))
       "should take first item when init is not provided")
   (is (= "no-arg"
          (reduce (fn
                    ([] "no-arg")
                    ([a b] (str a b)))
-                 (->> (lines-stream "UTF-8")
+                 (->> (lines-data "UTF-8")
                       (decode! lines-decoder {:open lines-open}))))
       "should call no-arg reducer when collection is empty"))
 
@@ -52,7 +52,7 @@
                   (lines-decoder stream eof))
         close (fn [stream]
                 (swap! calls conj :close))
-        result (->> (lines-stream "UTF-8" "first" "second" "third")
+        result (->> (lines-data "UTF-8" "first" "second" "third")
                     (decode! decoder {:open open :close close})
                     (take 1))]
     (is (= 1 (count result))
@@ -65,65 +65,65 @@
          (into []
                (take 1)
                (decode-lines! "SJIS"
-                              (lines-stream "SJIS" "昨夜のコンサートは最高でした。"))))
+                              (lines-data "SJIS" "昨夜のコンサートは最高でした。"))))
       "should propagate encoding"))
 
-(defn encoded-edn-stream
+(defn encoded-edn-data
   [encoding & objs]
-  (io/input-stream (.getBytes (string/join (map pr-str objs)) encoding)))
+  (.getBytes (string/join (map pr-str objs)) encoding))
 
-(defn edn-stream
+(defn edn-data
   [& objs]
-  (apply encoded-edn-stream "UTF-8" objs))
+  (apply encoded-edn-data "UTF-8" objs))
 
 (deftest t-decode-edn!
   (is (= [42]
          (into []
                (take 1)
                (decode-edn! {:readers {'foo/bar (fn [v] 42)}}
-                            (edn-stream (tagged-literal 'foo/bar {})))))
+                            (edn-data (tagged-literal 'foo/bar {})))))
       "should propagate readers option")
   (is (= [42]
          (into []
                (comp (drop 1)
                      (take 1))
-               (decode-edn! {:eof 42} (edn-stream {}))))
+               (decode-edn! {:eof 42} (edn-data {}))))
       "should propagate eof option")
   (is (= ["昨夜のコンサートは最高でした。"]
          (into []
                (take 1)
                (decode-edn! {:encoding "SJIS"}
-                            (encoded-edn-stream "SJIS"
-                                                "昨夜のコンサートは最高でした。"))))
+                            (encoded-edn-data "SJIS"
+                                              "昨夜のコンサートは最高でした。"))))
       "should propagate encoing option"))
 
-(defn encoded-clojure-stream
+(defn encoded-clojure-data
   [encoding & objs]
-  (io/input-stream (.getBytes (string/join (map pr-str objs)) encoding)))
+  (.getBytes (string/join (map pr-str objs)) encoding))
 
-(defn clojure-stream
+(defn clojure-data
   [& objs]
-  (apply encoded-clojure-stream "UTF-8" objs))
+  (apply encoded-clojure-data "UTF-8" objs))
 
 (deftest t-decode-clojure!
   (is (= [42]
          (into []
                (take 1)
                (binding [*data-readers* {'foo/bar (fn [v] 42)}]
-                 (decode-clojure! (clojure-stream (tagged-literal 'foo/bar {}))))))
+                 (decode-clojure! (clojure-data (tagged-literal 'foo/bar {}))))))
       "should propagate readers binding")
   (is (= [42]
          (into []
                (comp (drop 1)
                      (take 1))
-               (decode-clojure! {:eof 42} (clojure-stream {}))))
+               (decode-clojure! {:eof 42} (clojure-data {}))))
       "should propagate eof option")
   (is (= ["昨夜のコンサートは最高でした。"]
          (into []
                (take 1)
                (decode-clojure! {:encoding "SJIS"}
-                                (encoded-clojure-stream "SJIS"
-                                                        "昨夜のコンサートは最高でした。"))))
+                                (encoded-clojure-data "SJIS"
+                                                      "昨夜のコンサートは最高でした。"))))
       "should propagate encoing option"))
 
 (defrecord SomeNewType [])
@@ -135,7 +135,7 @@
         writer (transit/writer baos type options)]
     (doseq [obj objs]
       (transit/write writer obj))
-    (io/input-stream (.toByteArray baos))))
+    (.toByteArray baos)))
 
 (deftest t-decode-transit!
   (is (= [{:foo "bar"}]
