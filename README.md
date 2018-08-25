@@ -46,7 +46,7 @@ But there is no guarantee that a lazy sequence will be fully consumed.
 ## Reduction
 
 Reduction can be used to process a collection, and in Clojure the collection
-that is being reduced can control the reduction process.  The collection could
+that is being reduced can control the reduction.  The collection could
 (theoretically) clean up resources after the reduction is complete (whether or
 not the collection has been fully consumed).
 
@@ -70,22 +70,24 @@ even a stream.
 
 ## Big Idea
 
-The big idea here is to take a stream, fuse it with a decoder and resource
-management, and package it up as a reducible object.  This object can be passed
-around as a value and can have a transducer applied to it, and whether that
-transducer fully consumes the stream or not, the stream will get cleaned up.
+The big idea here is to package up--as a reducible object--a decoder and
+resource management (i.e. `open` and `close` functions).  This object can be
+passed around as a value and can have a transducer applied to it, and whether
+that transducer fully consumes the stream or not, the stream will get cleaned
+up.
 
 ## Consequences
 
 The reduction process is eager, so you obviously need to consider that.  In
-addition, the reducible stream object performs I/O, and can only be used once.
-If you try to reduce it again you'll get an exception about the stream being
-closed.
+addition, the reducible stream object performs I/O, and can might only be usable
+once.  If you try to reduce it again you may get an exception about the stream
+being closed.  You can mitigate this somewhat by not passing in a stream but
+data from which `open` creates a stream.
 
 The reducible stream also exposes a seq interface, so you can use it with
 sequence operations, however, the entire sequence will be preloaded into memory.
-This may or may not be a problem, given that you get automatic resource
-management.
+Given that you get automatic resource management, this may or may not be an
+appropriate trade-off for you.
 
 Using a reducible stream with reduction is the preferred method, since it allows
 you to terminate the reduction early, or reduce for side effects and not load
@@ -108,7 +110,7 @@ There are four interfaces to this library: `decode-lines!`, `decode-edn!`,
 
 ```clojure
 ;; an example of using decode-lines!
-(let [source (decode-lines! (io/input-stream (io/file "some file")))
+(let [source (decode-lines! (io/file "some file"))
       transducer (comp (filter (comp odd? count))
                        (take 10))]
   (into [] transducer source))
@@ -116,6 +118,14 @@ There are four interfaces to this library: `decode-lines!`, `decode-edn!`,
 
 `decode-lines!` can also take an encoding that will get passed to the reader
 that is used to read the stream.
+
+```clojure
+;; an example of using decode-lines! with an encoding
+(let [source (decode-lines! "UTF-8" (io/file "some file"))
+      transducer (comp (filter (comp odd? count))
+                       (take 10))]
+  (into [] transducer source))
+```
 
 Each of the other functions is used similarly, and each can take options that
 will get forwarded to the decoder that is being used.
