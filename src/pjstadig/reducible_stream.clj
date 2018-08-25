@@ -5,10 +5,14 @@
   (:import
    (java.io Closeable PushbackReader)))
 
-(defn- decoder-seq
-  [decoder stream]
-  (->> (repeatedly #(decoder stream ::eof))
-       (take-while (complement #{::eof}))))
+(defn- decode!*
+  [e? f rf r v]
+  (if (e? v)
+    r
+    (let [r (rf r v)]
+      (if (reduced? r)
+        @r
+        (recur e? f rf r (f))))))
 
 (defn decode!
   "Creates a reducible, seqable object that will decode (using the decoder
@@ -52,19 +56,25 @@
                        (.close ^Closeable stream))))]
      (reify
        clojure.lang.IReduce
-       (reduce [this f]
+       (reduce [this rf]
          (io!
-          (let [stream (open stream)]
+          (let [stream (open stream)
+                decode #(decoder stream ::eof)
+                eof? (partial identical? ::eof)]
             (try
-              (reduce f (decoder-seq decoder stream))
+              (let [v (decode)]
+                (if (eof? v)
+                  (rf)
+                  (decode!* eof? decode rf v (decode))))
               (finally
                 (close stream))))))
        clojure.lang.IReduceInit
-       (reduce [this f init]
+       (reduce [this rf init]
          (io!
-          (let [stream (open stream)]
+          (let [stream (open stream)
+                decode #(decoder stream ::eof)]
             (try
-              (reduce f init (decoder-seq decoder stream))
+              (decode!* (partial identical? ::eof) decode rf init (decode))
               (finally
                 (close stream))))))
        clojure.lang.Seqable
