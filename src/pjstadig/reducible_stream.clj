@@ -79,10 +79,7 @@
                 (close stream))))))
        clojure.lang.Seqable
        (seq [this]
-         (seq (into [] this)))
-       clojure.lang.Counted
-       (count [this]
-         (count (seq this)))))))
+         (seq (into [] this)))))))
 
 (defn lines-open
   "Used as the open function for decoding text.  Returns a
