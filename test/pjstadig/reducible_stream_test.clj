@@ -61,9 +61,11 @@
         "should consume all items")))
 
 (deftest t-decode-lines!
-  (is (= "昨夜のコンサートは最高でした。"
-         (first (decode-lines! "SJIS"
-                               (lines-stream "SJIS" "昨夜のコンサートは最高でした。"))))
+  (is (= ["昨夜のコンサートは最高でした。"]
+         (into []
+               (take 1)
+               (decode-lines! "SJIS"
+                              (lines-stream "SJIS" "昨夜のコンサートは最高でした。"))))
       "should propagate encoding"))
 
 (defn encoded-edn-stream
@@ -75,16 +77,24 @@
   (apply encoded-edn-stream "UTF-8" objs))
 
 (deftest t-decode-edn!
-  (is (= 42 (first (decode-edn! {:readers {'foo/bar (fn [v] 42)}}
-                                (edn-stream (tagged-literal 'foo/bar {})))))
+  (is (= [42]
+         (into []
+               (take 1)
+               (decode-edn! {:readers {'foo/bar (fn [v] 42)}}
+                            (edn-stream (tagged-literal 'foo/bar {})))))
       "should propagate readers option")
-  (is (= 42 (last (decode-edn! {:eof 42} (edn-stream {}))))
+  (is (= [42]
+         (into []
+               (comp (drop 1)
+                     (take 1))
+               (decode-edn! {:eof 42} (edn-stream {}))))
       "should propagate eof option")
-  (is (= "昨夜のコンサートは最高でした。"
-         (first
-          (decode-edn! {:encoding "SJIS"}
-                       (encoded-edn-stream "SJIS"
-                                           "昨夜のコンサートは最高でした。"))))
+  (is (= ["昨夜のコンサートは最高でした。"]
+         (into []
+               (take 1)
+               (decode-edn! {:encoding "SJIS"}
+                            (encoded-edn-stream "SJIS"
+                                                "昨夜のコンサートは最高でした。"))))
       "should propagate encoing option"))
 
 (defn encoded-clojure-stream
@@ -96,18 +106,24 @@
   (apply encoded-clojure-stream "UTF-8" objs))
 
 (deftest t-decode-clojure!
-  (is (= 42
-         (first
-          (binding [*data-readers* {'foo/bar (fn [v] 42)}]
-            (decode-clojure! (clojure-stream (tagged-literal 'foo/bar {}))))))
+  (is (= [42]
+         (into []
+               (take 1)
+               (binding [*data-readers* {'foo/bar (fn [v] 42)}]
+                 (decode-clojure! (clojure-stream (tagged-literal 'foo/bar {}))))))
       "should propagate readers binding")
-  (is (= 42 (last (decode-clojure! {:eof 42} (clojure-stream {}))))
+  (is (= [42]
+         (into []
+               (comp (drop 1)
+                     (take 1))
+               (decode-clojure! {:eof 42} (clojure-stream {}))))
       "should propagate eof option")
-  (is (= "昨夜のコンサートは最高でした。"
-         (first
-          (decode-clojure! {:encoding "SJIS"}
-                           (encoded-clojure-stream "SJIS"
-                                                   "昨夜のコンサートは最高でした。"))))
+  (is (= ["昨夜のコンサートは最高でした。"]
+         (into []
+               (take 1)
+               (decode-clojure! {:encoding "SJIS"}
+                                (encoded-clojure-stream "SJIS"
+                                                        "昨夜のコンサートは最高でした。"))))
       "should propagate encoing option"))
 
 (defrecord SomeNewType [])
@@ -122,19 +138,19 @@
     (io/input-stream (.toByteArray baos))))
 
 (deftest t-decode-transit!
-  (is (= {:foo "bar"}
+  (is (= [{:foo "bar"}]
          (->> (transit-stream :json {:foo "bar"})
               (decode-transit! :json)
-              (first)))
+              (into [] (take 1))))
       "should propagate encoding type")
-  (is (= {:foo "bar"}
+  (is (= [{:foo "bar"}]
          (->> (transit-stream :msgpack {:foo "bar"})
               (decode-transit! :msgpack)
-              (first)))
+              (into [] (take 1))))
       "should propagate encoding type")
   (let [read-handlers {:handlers (transit/record-read-handlers SomeNewType)}]
-    (is (= (->SomeNewType)
+    (is (= [(->SomeNewType)]
            (->> (transit-stream :json (->SomeNewType))
                 (decode-transit! :json read-handlers)
-                (first)))
+                (into [] (take 1))))
         "should propagate handlers")))
