@@ -79,19 +79,25 @@ up.
 ## Consequences
 
 The reduction process is eager, so you obviously need to consider that.  In
-addition, the reducible stream object performs I/O, and can might only be usable
+addition, the reducible stream object performs I/O, and might only be usable
 once.  If you try to reduce it again you may get an exception about the stream
 being closed.  You can mitigate this somewhat by not passing in a stream but
-data from which `open` creates a stream.
+data from which `open` creates a stream.  So, do this:
+
+```clojure
+(decode-lines! (io/file "some file"))
+```
+
+instead of this:
+
+```clojure
+(decode-lines! (io/reader (io/file "some file")))
+```
 
 The reducible stream also exposes a seq interface, so you can use it with
 sequence operations, however, the entire sequence will be preloaded into memory.
 Given that you get automatic resource management, this may or may not be an
 appropriate trade-off for you.
-
-Using a reducible stream with reduction is the preferred method, since it allows
-you to terminate the reduction early, or reduce for side effects and not load
-the entire sequence into memory.
 
 This is all very side-effecty...so get over it!
 
