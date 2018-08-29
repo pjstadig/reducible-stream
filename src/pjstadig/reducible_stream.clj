@@ -212,7 +212,8 @@
 
 (defn- transit-enabled‽
   []
-  (require 'cognitect.transit))
+  (require 'cognitect.transit)
+  (require 'pjstadig.reducible-stream.transit))
 
 (defn transit-open
   "Used as the open function for decoding transit.  Passes along options to
@@ -220,8 +221,8 @@
   cognitect.transit/read."
   [type options streamable]
   (transit-enabled‽)
-  (let [reader (ns-resolve 'cognitect.transit 'reader)]
-    (reader (io/input-stream streamable) type options)))
+  (let [reader (ns-resolve 'pjstadig.reducible-stream.transit 'reader)]
+    (reader type options streamable)))
 
 (defn transit-decoder
   "Decodes one item from reader returning eof if the end of the reader is
@@ -243,7 +244,7 @@
   (^clojure.lang.IReduce
    [type options streamable]
    (transit-enabled‽)
-   (let [read (ns-resolve 'cognitect.transit 'read)]
+   (let [read (ns-resolve 'pjstadig.reducible-stream.transit 'read)]
      (decode! (partial transit-decoder read)
               {:open (partial transit-open type options)}
               streamable))))

@@ -6,6 +6,38 @@
    [cognitect.transit :as transit]
    [pjstadig.reducible-stream :refer :all]))
 
+(defn proxied-input-stream
+  [data closed?]
+  (let [in (io/input-stream data)]
+    (proxy [java.io.InputStream] []
+      (available []
+        (.available in))
+      (close []
+        (reset! closed? true)
+        (.close in))
+      (mark [read-limit]
+        (.mark in read-limit))
+      (markSupported []
+        (.markSupported in))
+      (read
+        ([]
+         (.read in))
+        ([bytes]
+         (.read in bytes))
+        ([bytes off len]
+         (.read in bytes off len)))
+      (reset []
+        (.reset in))
+      (skip [n]
+        (.skip in n)))))
+
+(defn closed?
+  [data decode]
+  (let [closed? (atom false)
+        in (proxied-input-stream data closed?)]
+    (into [] (take 1) (decode in))
+    @closed?))
+
 (defn lines-data
   [encoding & lines]
   (.getBytes (string/join "\n" lines) encoding))
@@ -66,7 +98,8 @@
                (take 1)
                (decode-lines! "SJIS"
                               (lines-data "SJIS" "昨夜のコンサートは最高でした。"))))
-      "should propagate encoding"))
+      "should propagate encoding")
+  (is (closed? (lines-data "UTF-8" "first") decode-lines!)))
 
 (defn encoded-edn-data
   [encoding & objs]
@@ -95,7 +128,8 @@
                (decode-edn! {:encoding "SJIS"}
                             (encoded-edn-data "SJIS"
                                               "昨夜のコンサートは最高でした。"))))
-      "should propagate encoding option"))
+      "should propagate encoding option")
+  (is (closed? (edn-data {:foo "bar"}) decode-edn!)))
 
 (defn encoded-clojure-data
   [encoding & objs]
@@ -146,7 +180,8 @@
                (decode-clojure! {:encoding "SJIS"}
                                 (encoded-clojure-data "SJIS"
                                                       "昨夜のコンサートは最高でした。"))))
-      "should propagate encoding option"))
+      "should propagate encoding option")
+  (is (closed? (clojure-data {:foo "bar"}) decode-clojure!)))
 
 (defrecord SomeNewType [])
 
@@ -175,7 +210,10 @@
            (->> (transit-stream :json (->SomeNewType))
                 (decode-transit! :json read-handlers)
                 (into [] (take 1))))
-        "should propagate handlers")))
+        "should propagate handlers"))
+  (is (closed? (transit-stream :json {:foo "bar"})
+               (partial decode-transit! :json))
+      "should close stream"))
 
 (deftest t-decode-csv!
   (let [csv-data (.getBytes "a,b,c\n1,2,3\n4,5,6\n")]
