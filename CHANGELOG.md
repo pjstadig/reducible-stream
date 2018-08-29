@@ -5,6 +5,10 @@ log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2018-08-29
+### Fixed
+- Fixed resource leak in transit decoding...kind of the whole point of this library.
+
 ## [0.1.4] - 2018-08-26
 ### Changes
 - Removed internal seq allocation.
@@ -30,6 +34,7 @@ log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 - Initial implementation of library.
 
 [Unreleased]: https://github.com/pjstadig/reducible-stream/compare/0.1.4...HEAD
+[0.1.5]: https://github.com/pjstadig/reducible-stream/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/pjstadig/reducible-stream/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/pjstadig/reducible-stream/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/pjstadig/reducible-stream/compare/0.1.1...0.1.2
