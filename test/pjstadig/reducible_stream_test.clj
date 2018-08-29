@@ -95,7 +95,7 @@
                (decode-edn! {:encoding "SJIS"}
                             (encoded-edn-data "SJIS"
                                               "昨夜のコンサートは最高でした。"))))
-      "should propagate encoing option"))
+      "should propagate encoding option"))
 
 (defn encoded-clojure-data
   [encoding & objs]
@@ -106,21 +106,34 @@
   (apply encoded-clojure-data "UTF-8" objs))
 
 (deftest t-decode-clojure!
-  (let [r (binding [*data-readers* {'foo/bar (fn [v] 42)}]
-            (decode-clojure! (clojure-data (tagged-literal 'foo/bar {}))))]
+  (let [r (decode-clojure! {:data-readers {'foo/bar (fn [v] 42)}}
+                           (clojure-data (tagged-literal 'foo/bar {})))]
     (is (= [42]
            (into []
                  (take 1)
                  r))
-        "should propagate readers binding"))
-  (let [r (binding [*read-eval* false]
-            (decode-clojure! (.getBytes "#=(+ 1 2)")))]
+        "should propagate data-readers config"))
+  (let [r (decode-clojure! {:read-eval true} (.getBytes "#=(+ 1 2)"))]
+    (is (= [3]
+           (binding [*read-eval* false]
+             (into []
+                   (take 1)
+                   r)))
+        "should propagate read-eval config"))
+  (let [r (decode-clojure! (clojure-data (tagged-literal 'foo/bar {})))]
+    (is (= [42]
+           (binding [*data-readers* {'foo/bar (fn [v] 42)}]
+             (into []
+                   (take 1)
+                   r)))
+        "should inherit data-readers binding"))
+  (let [r (decode-clojure! (.getBytes "#=(+ 1 2)"))]
     (is (thrown? RuntimeException
-                 (binding [*read-eval* true]
+                 (binding [*read-eval* false]
                    (into []
                          (take 1)
                          r)))
-        "should propagate read-eval binding"))
+        "should inherit read-eval binding"))
   (is (= [42]
          (into []
                (comp (drop 1)
@@ -133,7 +146,7 @@
                (decode-clojure! {:encoding "SJIS"}
                                 (encoded-clojure-data "SJIS"
                                                       "昨夜のコンサートは最高でした。"))))
-      "should propagate encoing option"))
+      "should propagate encoding option"))
 
 (defrecord SomeNewType [])
 

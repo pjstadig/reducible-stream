@@ -56,9 +56,11 @@
   If the close function is not specified and the object returned by the open
   function implements java.io.Closeable, then it will be closed.  Otherwise the
   close function is a no-op."
-  ([decoder streamable]
+  (^clojure.lang.IReduce
+   [decoder streamable]
    (decode! decoder {} streamable))
-  ([decoder {:as options :keys [open close]} streamable]
+  (^clojure.lang.IReduce
+   [decoder {:as options :keys [open close]} streamable]
    (let [open (or open io/input-stream)
          close (or close
                    (fn close [stream]
@@ -80,7 +82,6 @@
                           options))
               (finally
                 (close stream))))))
-       clojure.lang.IReduceInit
        (reduce [this rf init]
          (io!
           (let [stream (open streamable)
@@ -115,9 +116,11 @@
   "Decodes a stream of text data line-by-line, the encoding option will be
   passed to lines-open.  If the :encoding option is not specified, it will
   default to \"UTF-8\"."
-  ([streamable]
+  (^clojure.lang.IReduce
+   [streamable]
    (decode-lines! nil streamable))
-  ([encoding streamable]
+  (^clojure.lang.IReduce
+   [encoding streamable]
    (decode! lines-decoder {:open (partial lines-open encoding)} streamable)))
 
 (defn edn-open
@@ -140,9 +143,11 @@
   "Decodes a stream of edn data, the :encoding option will be passed to
   edn-open, and all other options are passed along to clojure.edn/read.  If
   the :encoding option is not specified, it will default to \"UTF-8\"."
-  ([streamable]
+  (^clojure.lang.IReduce
+   [streamable]
    (decode-edn! {} streamable))
-  ([options streamable]
+  (^clojure.lang.IReduce
+   [options streamable]
    (decode! (partial edn-decoder (dissoc options :encoding))
             (cond-> {:open (partial edn-open (:encoding options))}
               (contains? options :eof) (assoc :eof (:eof options)))
@@ -166,17 +171,44 @@
 
 (defn decode-clojure!
   "Decodes a stream of clojure data, the :encoding option will be passed to
-  clojure-open, and all other options are passed along to clojure.core/read.  If
-  the :encoding option is not specified, it will default to \"UTF-8\".
+  clojure-open, and all other options (except :read-eval and :data-readers) are
+  passed along to clojure.core/read.  If the :encoding option is not specified,
+  it will default to \"UTF-8\".
 
-  Bindings (e.g. for *data-readers* and *read-eval*) will be preserved."
-  ([streamable]
+  If the :read-eval or :data-readers options are specified, they will be used to
+  establish bindings for the duration of the reduction.  If either (or both) is
+  not specified, it's value will be inherited from the bindings in place in the
+  scope the reduction happens (which is not necessarily the same as the scope in
+  which decode-clojure! is called)."
+  (^clojure.lang.IReduce
+   [streamable]
    (decode-clojure! {} streamable))
-  ([options streamable]
-   (decode! (bound-fn* (partial clojure-decoder (dissoc options :encoding)))
-            (cond-> {:open (partial clojure-open (:encoding options))}
-              (contains? options :eof) (assoc :eof (:eof options)))
-            streamable)))
+  (^clojure.lang.IReduce
+   [options streamable]
+   (let [bindings (select-keys options [:read-eval :data-readers])
+         options (dissoc options :read-eval :data-readers)
+         r (decode! (partial clojure-decoder (dissoc options :encoding))
+                    (cond-> {:open (partial clojure-open (:encoding options))}
+                      (contains? options :eof) (assoc :eof (:eof options)))
+                    streamable)]
+     (reify
+       clojure.lang.IReduce
+       (reduce [this rf]
+         (binding [*read-eval* (if (contains? bindings :read-eval)
+                                 (:read-eval bindings)
+                                 *read-eval*)
+                   *data-readers* (if (contains? bindings :data-readers)
+                                    (:data-readers bindings)
+                                    *data-readers*)]
+           (.reduce r rf)))
+       (reduce [this rf init]
+         (binding [*read-eval* (if (contains? bindings :read-eval)
+                                 (:read-eval bindings)
+                                 *read-eval*)
+                   *data-readers* (if (contains? bindings :data-readers)
+                                    (:data-readers bindings)
+                                    *data-readers*)]
+           (.reduce r rf init)))))))
 
 (defn- transit-enabled‽
   []
@@ -205,9 +237,11 @@
 (defn decode-transit!
   "Decodes a stream of transit data passing options along to
   cognitect.transit/reader."
-  ([type streamable]
+  (^clojure.lang.IReduce
+   [type streamable]
    (decode-transit! type {} streamable))
-  ([type options streamable]
+  (^clojure.lang.IReduce
+   [type options streamable]
    (transit-enabled‽)
    (let [read (ns-resolve 'cognitect.transit 'read)]
      (decode! (partial transit-decoder read)
@@ -299,9 +333,11 @@
                 headers with the record values.  If specified, the first record
                 will be treated as a header.  If not specified, the records are
                 returned as vectors of strings, instead of maps"
-  ([streamable]
+  (^clojure.lang.IReduce
+   [streamable]
    (decode-csv! {} streamable))
-  ([options streamable]
+  (^clojure.lang.IReduce
+   [options streamable]
    (let [sep (or (:separator options) \,)
          quote (or (:quote options) \")
          header (:header options)]
