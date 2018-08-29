@@ -330,9 +330,11 @@
     :separator  the char used to separate fields in a record
     :quote      the char used to delineate a quoted field
     :header     a function called with each header value before zipping the
-                headers with the record values.  If specified, the first record
-                will be treated as a header.  If not specified, the records are
-                returned as vectors of strings, instead of maps"
+                headers with the record values.  If header returns nil, then
+                that column will be removed from the resulting map.  If
+                specified, the first record will be treated as a header.  If not
+                specified, the records are returned as vectors of strings,
+                instead of maps"
   (^clojure.lang.IReduce
    [streamable]
    (decode-csv! {} streamable))
@@ -344,13 +346,25 @@
      (cond->> (decode! (partial csv-decoder (int sep) (int quote))
                        {:open (partial csv-open (:encoding options))}
                        streamable)
-       header (eduction (fn ->map [rf]
-                          (let [headers (volatile! nil)]
-                            (fn
-                              ([] (rf))
-                              ([result] (rf result))
-                              ([result input]
-                               (if-let [headers @headers]
-                                 (rf result (zipmap headers input))
-                                 (do (vreset! headers (map header input))
-                                     result)))))))))))
+       header (eduction
+               (fn ->map [rf]
+                 (let [headers (volatile! nil)]
+                   (fn
+                     ([] (rf))
+                     ([result] (rf result))
+                     ([result input]
+                      (if-let [headers @headers]
+                        (rf result
+                            (loop [m (transient {})
+                                   headers (seq headers)
+                                   input (seq input)]
+                              (if (and headers input)
+                                (let [k (header (first headers))]
+                                  (recur (if k
+                                           (assoc! m k (first input))
+                                           m)
+                                         (next headers)
+                                         (next input)))
+                                (persistent! m))))
+                        (do (vreset! headers input)
+                            result)))))))))))
