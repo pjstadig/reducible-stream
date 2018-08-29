@@ -3,7 +3,7 @@
    [clojure.edn :as edn]
    [clojure.java.io :as io])
   (:import
-   (java.io Closeable PushbackReader)))
+   (java.io Closeable EOFException PushbackReader)))
 
 (defn- decode!*
   [r rf v f e?]
@@ -56,12 +56,12 @@
   If the close function is not specified and the object returned by the open
   function implements java.io.Closeable, then it will be closed.  Otherwise the
   close function is a no-op."
-  ([decoder stream]
-   (decode! decoder {} stream))
-  ([decoder {:as options :keys [open close]} stream]
+  ([decoder streamable]
+   (decode! decoder {} streamable))
+  ([decoder {:as options :keys [open close]} streamable]
    (let [open (or open io/input-stream)
          close (or close
-                   (fn [stream]
+                   (fn close [stream]
                      (when (instance? Closeable stream)
                        (.close ^Closeable stream))))
          eof? (partial identical? ::eof)]
@@ -69,7 +69,7 @@
        clojure.lang.IReduce
        (reduce [this rf]
          (io!
-          (let [stream (open stream)
+          (let [stream (open streamable)
                 decode #(decoder stream ::eof)]
             (try
               (let [v (decode)]
@@ -83,7 +83,7 @@
        clojure.lang.IReduceInit
        (reduce [this rf init]
          (io!
-          (let [stream (open stream)
+          (let [stream (open streamable)
                 decode #(decoder stream ::eof)]
             (try
               (finalize (decode!* init rf (decode) decode eof?)
@@ -98,10 +98,10 @@
 (defn lines-open
   "Used as the open function for decoding text.  Returns a
   java.io.BufferedReader instance."
-  ([stream]
-   (lines-open nil stream))
-  ([encoding stream]
-   (io/reader stream :encoding (or encoding "UTF-8"))))
+  ([streamable]
+   (lines-open nil streamable))
+  ([encoding streamable]
+   (io/reader streamable :encoding (or encoding "UTF-8"))))
 
 (defn lines-decoder
   "Decodes one line of text from reader returning eof if the end of the reader
@@ -115,18 +115,18 @@
   "Decodes a stream of text data line-by-line, the encoding option will be
   passed to lines-open.  If the :encoding option is not specified, it will
   default to \"UTF-8\"."
-  ([stream]
-   (decode-lines! nil stream))
-  ([encoding stream]
-   (decode! lines-decoder {:open (partial lines-open encoding)} stream)))
+  ([streamable]
+   (decode-lines! nil streamable))
+  ([encoding streamable]
+   (decode! lines-decoder {:open (partial lines-open encoding)} streamable)))
 
 (defn edn-open
   "Used as the open function for decoding edn.  Returns a java.io.PushbackReader
   instance for use with clojure.edn/read."
-  ([stream]
-   (edn-open nil stream))
-  ([encoding stream]
-   (PushbackReader. (io/reader stream :encoding (or encoding "UTF-8")))))
+  ([streamable]
+   (edn-open nil streamable))
+  ([encoding streamable]
+   (PushbackReader. (io/reader streamable :encoding (or encoding "UTF-8")))))
 
 (defn edn-decoder
   "Decodes one item from reader returning eof if the end of the reader is
@@ -140,21 +140,21 @@
   "Decodes a stream of edn data, the :encoding option will be passed to
   edn-open, and all other options are passed along to clojure.edn/read.  If
   the :encoding option is not specified, it will default to \"UTF-8\"."
-  ([stream]
-   (decode-edn! {} stream))
-  ([options stream]
+  ([streamable]
+   (decode-edn! {} streamable))
+  ([options streamable]
    (decode! (partial edn-decoder (dissoc options :encoding))
             (cond-> {:open (partial edn-open (:encoding options))}
               (contains? options :eof) (assoc :eof (:eof options)))
-            stream)))
+            streamable)))
 
 (defn clojure-open
   "Used as the open function for decoding clojure.  Returns a
   java.io.PushbackReader instance for use with clojure.core/read."
-  ([stream]
-   (clojure-open nil stream))
-  ([encoding stream]
-   (PushbackReader. (io/reader stream :encoding (or encoding "UTF-8")))))
+  ([streamable]
+   (clojure-open nil streamable))
+  ([encoding streamable]
+   (PushbackReader. (io/reader streamable :encoding (or encoding "UTF-8")))))
 
 (defn clojure-decoder
   "Decodes one item from reader returning eof if the end of the reader is
@@ -167,14 +167,16 @@
 (defn decode-clojure!
   "Decodes a stream of clojure data, the :encoding option will be passed to
   clojure-open, and all other options are passed along to clojure.core/read.  If
-  the :encoding option is not specified, it will default to \"UTF-8\"."
-  ([stream]
-   (decode-clojure! {} stream))
-  ([options stream]
+  the :encoding option is not specified, it will default to \"UTF-8\".
+
+  Bindings (e.g. for *data-readers* and *read-eval*) will be preserved."
+  ([streamable]
+   (decode-clojure! {} streamable))
+  ([options streamable]
    (decode! (bound-fn* (partial clojure-decoder (dissoc options :encoding)))
             (cond-> {:open (partial clojure-open (:encoding options))}
               (contains? options :eof) (assoc :eof (:eof options)))
-            stream)))
+            streamable)))
 
 (defn- transit-enabled‽
   []
@@ -184,10 +186,10 @@
   "Used as the open function for decoding transit.  Passes along options to
   cognitect.transit/reader, and returns a transit reader for use with
   cognitect.transit/read."
-  [type options stream]
+  [type options streamable]
   (transit-enabled‽)
   (let [reader (ns-resolve 'cognitect.transit 'reader)]
-    (reader (io/input-stream stream) type options)))
+    (reader (io/input-stream streamable) type options)))
 
 (defn transit-decoder
   "Decodes one item from reader returning eof if the end of the reader is
@@ -203,11 +205,116 @@
 (defn decode-transit!
   "Decodes a stream of transit data passing options along to
   cognitect.transit/reader."
-  ([type stream]
-   (decode-transit! type {} stream))
-  ([type options stream]
+  ([type streamable]
+   (decode-transit! type {} streamable))
+  ([type options streamable]
    (transit-enabled‽)
    (let [read (ns-resolve 'cognitect.transit 'read)]
      (decode! (partial transit-decoder read)
               {:open (partial transit-open type options)}
-              stream))))
+              streamable))))
+
+(defn csv-open
+  "Used as the open function for decoding CSV.  Returns a PushbackReader
+  instance.  encoding is passed to java.io/reader.  If encoding is not
+  specified, it defaults to \"UTF-8\"."
+  ([streamable]
+   (csv-open nil streamable))
+  ([encoding streamable]
+   (PushbackReader. (io/reader streamable :encoding (or encoding "UTF-8")))))
+
+;; -- Copied from clojure.data.csv
+
+(def ^:private ^:const lf
+  (long \newline))
+(def ^:private ^:const cr
+  (long \return))
+(def ^:private ^:const
+  eof -1)
+
+(defn- read-quoted-cell
+  [^PushbackReader reader ^StringBuilder sb sep quote]
+  (loop [ch (.read reader)]
+    (condp == ch
+      quote (let [next-ch (.read reader)]
+              (condp == next-ch
+                quote (do (.append sb (char quote))
+                          (recur (.read reader)))
+                sep :sep
+                lf  :eol
+                cr  (let [next-next-ch (.read reader)]
+                      (when (not= next-next-ch lf)
+                        (.unread reader next-next-ch))
+                      :eol)
+                eof :eof
+                (throw (Exception. ^String (format "CSV error (unexpected character: %c)" next-ch)))))
+      eof (throw (EOFException. "CSV error (unexpected end of file)"))
+      (do (.append sb (char ch))
+          (recur (.read reader))))))
+
+(defn- read-cell
+  [^PushbackReader reader ^StringBuilder sb sep quote]
+  (let [first-ch (.read reader)]
+    (if (== first-ch quote)
+      (read-quoted-cell reader sb sep quote)
+      (loop [ch first-ch]
+        (condp == ch
+          sep :sep
+          lf  :eol
+          cr (let [next-ch (.read reader)]
+               (when (not= next-ch lf)
+                 (.unread reader next-ch))
+               :eol)
+          eof :eof
+          (do (.append sb (char ch))
+              (recur (.read reader))))))))
+
+(defn- read-record [reader sep quote]
+  (loop [record (transient [])]
+    (let [cell (StringBuilder.)
+          sentinel (read-cell reader cell sep quote)]
+      (if (= sentinel :sep)
+        (recur (conj! record (str cell)))
+        [(persistent! (conj! record (str cell))) sentinel]))))
+
+;; -- End clojure.data.csv
+
+(defn csv-decoder
+  "Decodes one record from reader returning eof if the end of the reader is
+  reached.  sep and quote are the separator and quote characters, respectively."
+  [sep quote reader eof]
+  (let [[record sentinel] (read-record reader sep quote)]
+    (case sentinel
+      :eol record
+      :eof eof)))
+
+(defn decode-csv!
+  "Decodes a stream of CSV data a record at a time.  Options is a hash map
+  containing the following keys:
+
+    :encoding   a charset encoding name, passed to csv-open
+    :separator  the char used to separate fields in a record
+    :quote      the char used to delineate a quoted field
+    :header     a function called with each header value before zipping the
+                headers with the record values.  If specified, the first record
+                will be treated as a header.  If not specified, the records are
+                returned as vectors of strings, instead of maps"
+  ([streamable]
+   (decode-csv! {} streamable))
+  ([options streamable]
+   (let [sep (or (:separator options) \,)
+         quote (or (:quote options) \")
+         header (:header options)]
+     (cond->> (decode! (partial csv-decoder (int sep) (int quote))
+                       {:open (partial csv-open (:encoding options))}
+                       streamable)
+       header (eduction (fn ->map [rf]
+                          (let [headers (volatile! nil)]
+                            (fn
+                              ([] (rf))
+                              ([result] (rf result))
+                              ([result input]
+                               (if-let [headers @headers]
+                                 (rf result (zipmap headers input))
+                                 (do (vreset! headers (map header input))
+                                     result)))))))))))

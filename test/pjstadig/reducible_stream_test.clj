@@ -106,12 +106,21 @@
   (apply encoded-clojure-data "UTF-8" objs))
 
 (deftest t-decode-clojure!
-  (is (= [42]
-         (into []
-               (take 1)
-               (binding [*data-readers* {'foo/bar (fn [v] 42)}]
-                 (decode-clojure! (clojure-data (tagged-literal 'foo/bar {}))))))
-      "should propagate readers binding")
+  (let [r (binding [*data-readers* {'foo/bar (fn [v] 42)}]
+            (decode-clojure! (clojure-data (tagged-literal 'foo/bar {}))))]
+    (is (= [42]
+           (into []
+                 (take 1)
+                 r))
+        "should propagate readers binding"))
+  (let [r (binding [*read-eval* false]
+            (decode-clojure! (.getBytes "#=(+ 1 2)")))]
+    (is (thrown? RuntimeException
+                 (binding [*read-eval* true]
+                   (into []
+                         (take 1)
+                         r)))
+        "should propagate read-eval binding"))
   (is (= [42]
          (into []
                (comp (drop 1)
@@ -154,3 +163,26 @@
                 (decode-transit! :json read-handlers)
                 (into [] (take 1))))
         "should propagate handlers")))
+
+(deftest t-decode-csv!
+  (let [csv-data (.getBytes "a,b,c\n1,2,3\n4,5,6\n")]
+    (is (= [["a" "b" "c"]]
+           (->> csv-data
+                (decode-csv!)
+                (into [] (take 1))))
+        "should parse csv")
+    (is (= [{"a" "1" "b" "2" "c" "3"}]
+           (->> csv-data
+                (decode-csv! {:header str})
+                (into [] (take 1))))
+        "should parse header into maps"))
+  (is (= [["a" "b" "c"]]
+         (->> (.getBytes "a|b|c\n1|2|3\n4|5|6\n")
+              (decode-csv! {:separator \|})
+              (into [] (take 1))))
+      "should take separator")
+  (is (= [["\"a\"" "\"b\"" "\"c\""]]
+         (->> (.getBytes "'\"a\"','\"b\"','\"c\"'\n1,2,3\n4,5,6\n")
+              (decode-csv! {:quote \'})
+              (into [] (take 1))))
+      "should take quote"))
